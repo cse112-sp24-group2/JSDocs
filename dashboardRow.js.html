@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: dashboardRow.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: dashboardRow.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import { initializeDB, getNotesFromStorage, saveNoteToStorage } from './noteStorage.js';
+import { deleteNote } from './noteFunctions.js';
+import { pageData, updateURL } from './Routing.js';
+import { addNotesToDocument } from './notesDashboard.js';
+import { toggleClassToArr } from './utility.js';
+
+const template = document.getElementById('dashboard-note-template');
+
+/**
+ * @description Copies a note and saves it to the IndexedDB storage, updating the document with the new note.
+ *
+ * @param {Object} note - The note object to be copied.
+ * @param {string} note.title - The title of the note.
+ * @param {number} note.uuid - The unique identifier of the note.
+ * @param {string} note.lastModified - The last modified date of the note.
+ * @returns {Promise&lt;void>} A promise that resolves once the note is copied and updated in the document.
+ */
+async function copyNote(note) {
+  const db = await initializeDB(indexedDB);
+  const newNote = { ...note };
+  newNote.title = `${note.title} (copy)`;
+  newNote.uuid = Date.now();
+  newNote.lastModified = new Date().toLocaleString();
+
+  const database = pageData.database;
+  const objectStore = database.transaction('NotesOS', 'readwrite').objectStore('NotesOS');
+  const getNoteRequest = objectStore.get(note.uuid);
+  getNoteRequest.onsuccess = () => {
+    const noteObject = getNoteRequest.result;
+    const tags = noteObject.tags;
+    const tagDB = pageData.tagDB;
+    const tagsObjectStore = tagDB.transaction('tags').objectStore('tags');
+    for (let i = 0; i &lt; tags.length; i += 1) {
+      const tagGetRequest = tagsObjectStore.get(tags[i]);
+      tagGetRequest.onsuccess = () => {
+        const tag = tagGetRequest.result;
+        tag.num_notes += 1;
+        const tagPutRequest = tagDB.transaction('tags', 'readwrite').objectStore('tags');
+        tagPutRequest.put(tag);
+      };
+    }
+  };
+  saveNoteToStorage(db, newNote);
+  //  Add new Note row without reloading
+  const notes = await getNotesFromStorage(db);
+  addNotesToDocument(notes);
+  updateURL(`?id=${newNote.uuid}`);
+}
+
+class dashboardRow extends HTMLElement {
+  /**
+   * create the shadow dom for the dashboard row
+   */
+  constructor() {
+    super();
+    this.flipped = false;
+    this.animation = false;
+
+    const shadow = this.attachShadow({ mode: 'open' });
+    this.shadowRoot.appendChild(template.content.cloneNode(true));
+
+    this.dom = this.fetchElementsFromDOM();
+
+    const note = document.createElement('div');
+    note.setAttribute('class', 'note');
+    shadow.append(note);
+  }
+
+  /**
+   * Finds necessary HTML elements in shadow root and puts into this.dom object
+   * @param none
+   */
+  fetchElementsFromDOM() {
+    return {
+      noteWrapper: this.shadowRoot.querySelector('.note-wrapper'),
+      noteFront: this.shadowRoot.querySelector('.note-front'),
+      noteBack: this.shadowRoot.querySelector('.note-back'),
+      title: this.shadowRoot.querySelector('.note-title'),
+      content: this.shadowRoot.querySelector('.note-text'),
+      copyButton: this.shadowRoot.querySelector('.note-copy-button'),
+      lastModified: this.shadowRoot.querySelector('.note-last-modified'),
+      noteMore: this.shadowRoot.querySelector('.note-more'),
+      downloadBtn: this.shadowRoot.querySelector('.note-download-button'),
+      copyBtn: this.shadowRoot.querySelector('.note-copy-button'),
+      deleteBtn: this.shadowRoot.querySelector('.note-delete-button'),
+      backBtn: this.shadowRoot.querySelector('.note-back-button'),
+      tags: this.shadowRoot.querySelector('.note-tags'),
+    };
+  }
+
+  /**
+   * Set the note property
+   * set Delete Button: Delete current note. Need second confirmation
+   * set duplicate Button: Duplicate the selected note
+   * @param {Object} note containing the note data
+   */
+  set note(note) {
+    const newTitle = document.createTextNode(note.title);
+    const newModified = document.createTextNode(note.lastModified);
+    const noteContent = note.htmlContent;
+
+    this.dom.title.replaceChildren(newTitle);
+    this.dom.lastModified.replaceChildren(newModified);
+    this.dom.content.innerHTML = noteContent;
+    // add tags to note back
+    this.dom.tags.innerHTML = note.tags.map((tag) => `&lt;span class="tag">${tag}&lt;/span>`).join('');
+
+    this.dom.deleteBtn.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      deleteNote(note.uuid);
+    });
+    this.dom.copyButton.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      copyNote(note);
+    });
+    const handleClick = (e) => {
+      e.stopPropagation();
+      this.flipNote();
+    };
+
+    this.dom.backBtn.onclick = handleClick;
+    this.dom.noteMore.onclick = handleClick;
+    this.dom.noteFront.onclick = () => updateURL(`?id=${note.uuid}`);
+  }
+
+  /**
+   * Flips card, toggling between front and back
+   * @param none
+   */
+  flipNote() {
+    if (!this.animation) {
+      // fires once per element for lifetime
+      toggleClassToArr([this.dom.noteFront, this.dom.noteBack], 'transition-action');
+      this.animation = true;
+    }
+
+    toggleClassToArr([this.dom.noteFront, this.dom.noteBack], 'flipped');
+    this.flipped = !this.flipped;
+  }
+}
+
+customElements.define('dashboard-row', dashboardRow);
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="dashboardRow.html">dashboardRow</a></li></ul><h3>Global</h3><ul><li><a href="global.html#URLRoutingHandler">URLRoutingHandler</a></li><li><a href="global.html#addNoteToDocument">addNoteToDocument</a></li><li><a href="global.html#addNotesToDocument">addNotesToDocument</a></li><li><a href="global.html#addTags">addTags</a></li><li><a href="global.html#addTagsToDOM">addTagsToDOM</a></li><li><a href="global.html#addTagsToDocument">addTagsToDocument</a></li><li><a href="global.html#addTagsToSidebar">addTagsToSidebar</a></li><li><a href="global.html#alertDialog">alertDialog</a></li><li><a href="global.html#confirmDialog">confirmDialog</a></li><li><a href="global.html#copyNote">copyNote</a></li><li><a href="global.html#createNoteObject">createNoteObject</a></li><li><a href="global.html#createTagHTML">createTagHTML</a></li><li><a href="global.html#deleteNote">deleteNote</a></li><li><a href="global.html#deleteNoteFromStorage">deleteNoteFromStorage</a></li><li><a href="global.html#deleteTagFromStorage">deleteTagFromStorage</a></li><li><a href="global.html#dom">dom</a></li><li><a href="global.html#exportNote">exportNote</a></li><li><a href="global.html#filterNotesByQuery">filterNotesByQuery</a></li><li><a href="global.html#filterNotesByTags">filterNotesByTags</a></li><li><a href="global.html#generateRandomString">generateRandomString</a></li><li><a href="global.html#getAllTagsFromStorage">getAllTagsFromStorage</a></li><li><a href="global.html#getDate">getDate</a></li><li><a href="global.html#getNoteFromStorage">getNoteFromStorage</a></li><li><a href="global.html#getNotesFromStorage">getNotesFromStorage</a></li><li><a href="global.html#getSelectedTags">getSelectedTags</a></li><li><a href="global.html#getTagFromStorage">getTagFromStorage</a></li><li><a href="global.html#getTagNumNotes">getTagNumNotes</a></li><li><a href="global.html#getTagsFromStorage">getTagsFromStorage</a></li><li><a href="global.html#hideEmptyWojak">hideEmptyWojak</a></li><li><a href="global.html#importNote">importNote</a></li><li><a href="global.html#init">init</a></li><li><a href="global.html#initDialog">initDialog</a></li><li><a href="global.html#initEditor">initEditor</a></li><li><a href="global.html#initEventHandler">initEventHandler</a></li><li><a href="global.html#initSearchBar">initSearchBar</a></li><li><a href="global.html#initSettings">initSettings</a></li><li><a href="global.html#initSortBy">initSortBy</a></li><li><a href="global.html#initThemeToggle">initThemeToggle</a></li><li><a href="global.html#initializeDB">initializeDB</a></li><li><a href="global.html#initializeTagDB">initializeTagDB</a></li><li><a href="global.html#parseNoteDate">parseNoteDate</a></li><li><a href="global.html#saveNote">saveNote</a></li><li><a href="global.html#saveNoteToStorage">saveNoteToStorage</a></li><li><a href="global.html#saveTagToStorage">saveTagToStorage</a></li><li><a href="global.html#searchByTag">searchByTag</a></li><li><a href="global.html#sortNotesByTime">sortNotesByTime</a></li><li><a href="global.html#sortNotesByTitle">sortNotesByTitle</a></li><li><a href="global.html#switchToDashboard">switchToDashboard</a></li><li><a href="global.html#switchToEditor">switchToEditor</a></li><li><a href="global.html#toggleClassToArr">toggleClassToArr</a></li><li><a href="global.html#updateTagNumNotes">updateTagNumNotes</a></li><li><a href="global.html#updateURL">updateURL</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.3</a> on Sun Jun 09 2024 17:36:15 GMT-0700 (Pacific Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

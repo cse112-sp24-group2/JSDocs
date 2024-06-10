@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: noteFunctions.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: noteFunctions.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/*
+ * noteFunctions.js provides note related functions that need to be called from
+ * both the editor AND the dashboard. Other note related functions are defined within
+ * noteDashboard.js or dashboardRow.js
+ *
+ * Functions inside this file:
+ *   - exportNote()
+ *   - deleteNote()
+ */
+import { saveAs } from 'file-saver';
+import { pdfExporter } from 'quill-to-pdf';
+import { pageData, updateURL } from './Routing.js';
+import { deleteNoteFromStorage, getNoteFromStorage, getNotesFromStorage } from './noteStorage.js';
+import { addNotesToDocument } from './notesDashboard.js';
+import { confirmDialog } from './settings.js';
+
+/**
+ * @description Exports the note as a pdf file
+ *
+ * @returns {void} This function does not return a value.
+ */
+export async function exportNote() {
+  const id = pageData.noteID;
+  const db = pageData.database;
+  const note = await getNoteFromStorage(db, id);
+
+  // Content to pdf
+  const pdfBlob = await pdfExporter.generatePdf(note.content);
+  // Download pdf to local
+  saveAs(pdfBlob, `${note.title}.pdf`);
+}
+
+/**
+ * @description Deletes the note
+ *
+ * @param {Number} toDelete OPTIONAL. Do not pass a ID if you are currently
+ *                  in the editor page, ID will be handled automatically. Only pass ID
+ *                  when deleting note from dashboard
+ * @returns {void} This function does not return a value.
+ */
+export async function deleteNote(toDelete) {
+  const id = toDelete || pageData.noteID;
+  const db = pageData.database;
+
+  if (!id) {
+    updateURL('');
+    return;
+  }
+
+  const confirm = await confirmDialog('Are you sure you want to delete this note?');
+  if (!confirm) return;
+
+  deleteNoteFromStorage(db, { uuid: id });
+
+  // different actions depending on deleting from dashboard or
+  // editor
+  if (toDelete) {
+    const notes = await getNotesFromStorage(db);
+    addNotesToDocument(notes);
+  } else {
+    updateURL('');
+  }
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="dashboardRow.html">dashboardRow</a></li></ul><h3>Global</h3><ul><li><a href="global.html#URLRoutingHandler">URLRoutingHandler</a></li><li><a href="global.html#addNoteToDocument">addNoteToDocument</a></li><li><a href="global.html#addNotesToDocument">addNotesToDocument</a></li><li><a href="global.html#addTags">addTags</a></li><li><a href="global.html#addTagsToDOM">addTagsToDOM</a></li><li><a href="global.html#addTagsToDocument">addTagsToDocument</a></li><li><a href="global.html#addTagsToSidebar">addTagsToSidebar</a></li><li><a href="global.html#alertDialog">alertDialog</a></li><li><a href="global.html#confirmDialog">confirmDialog</a></li><li><a href="global.html#copyNote">copyNote</a></li><li><a href="global.html#createNoteObject">createNoteObject</a></li><li><a href="global.html#createTagHTML">createTagHTML</a></li><li><a href="global.html#deleteNote">deleteNote</a></li><li><a href="global.html#deleteNoteFromStorage">deleteNoteFromStorage</a></li><li><a href="global.html#deleteTagFromStorage">deleteTagFromStorage</a></li><li><a href="global.html#dom">dom</a></li><li><a href="global.html#exportNote">exportNote</a></li><li><a href="global.html#filterNotesByQuery">filterNotesByQuery</a></li><li><a href="global.html#filterNotesByTags">filterNotesByTags</a></li><li><a href="global.html#generateRandomString">generateRandomString</a></li><li><a href="global.html#getAllTagsFromStorage">getAllTagsFromStorage</a></li><li><a href="global.html#getDate">getDate</a></li><li><a href="global.html#getNoteFromStorage">getNoteFromStorage</a></li><li><a href="global.html#getNotesFromStorage">getNotesFromStorage</a></li><li><a href="global.html#getSelectedTags">getSelectedTags</a></li><li><a href="global.html#getTagFromStorage">getTagFromStorage</a></li><li><a href="global.html#getTagNumNotes">getTagNumNotes</a></li><li><a href="global.html#getTagsFromStorage">getTagsFromStorage</a></li><li><a href="global.html#hideEmptyWojak">hideEmptyWojak</a></li><li><a href="global.html#importNote">importNote</a></li><li><a href="global.html#init">init</a></li><li><a href="global.html#initDialog">initDialog</a></li><li><a href="global.html#initEditor">initEditor</a></li><li><a href="global.html#initEventHandler">initEventHandler</a></li><li><a href="global.html#initSearchBar">initSearchBar</a></li><li><a href="global.html#initSettings">initSettings</a></li><li><a href="global.html#initSortBy">initSortBy</a></li><li><a href="global.html#initThemeToggle">initThemeToggle</a></li><li><a href="global.html#initializeDB">initializeDB</a></li><li><a href="global.html#initializeTagDB">initializeTagDB</a></li><li><a href="global.html#parseNoteDate">parseNoteDate</a></li><li><a href="global.html#saveNote">saveNote</a></li><li><a href="global.html#saveNoteToStorage">saveNoteToStorage</a></li><li><a href="global.html#saveTagToStorage">saveTagToStorage</a></li><li><a href="global.html#searchByTag">searchByTag</a></li><li><a href="global.html#sortNotesByTime">sortNotesByTime</a></li><li><a href="global.html#sortNotesByTitle">sortNotesByTitle</a></li><li><a href="global.html#switchToDashboard">switchToDashboard</a></li><li><a href="global.html#switchToEditor">switchToEditor</a></li><li><a href="global.html#toggleClassToArr">toggleClassToArr</a></li><li><a href="global.html#updateTagNumNotes">updateTagNumNotes</a></li><li><a href="global.html#updateURL">updateURL</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.3</a> on Sun Jun 09 2024 17:36:15 GMT-0700 (Pacific Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
